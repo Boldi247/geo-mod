@@ -10,6 +10,14 @@ class CurveEditor3D:
         self.axis_selection = 0  # 0 = x, 1 = y, 2 = z
         self.new_point = [0, 0, 0]  # To store the new point coordinates
 
+        # Visualize axes with colors and labels
+        self.ax.set_xlabel('X Axis', color='red')
+        self.ax.set_ylabel('Y Axis', color='green')
+        self.ax.set_zlabel('Z Axis', color='blue')
+        self.ax.xaxis.label.set_color('red')
+        self.ax.yaxis.label.set_color('green')
+        self.ax.zaxis.label.set_color('blue')
+
         # Add Point button
         add_ax = plt.axes([0.05, 0.85, 0.2, 0.075])  # Position for the Add Point button
         self.add_button = Button(add_ax, 'Add Point')
