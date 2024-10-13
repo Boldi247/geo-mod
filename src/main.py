@@ -1,7 +1,10 @@
+# TODO :: Correct the point draw (A pontok lerakása nem az igazi
+#  legalábbis funckiójában működik csak a 2D ről 3D re való konvertálás
+#  nem tetszik nekem - Ádám)
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
-
 
 class CurveEditor3D:
     def __init__(self):
@@ -33,17 +36,23 @@ class CurveEditor3D:
     def on_click(self, event):
         """ Handle mouse clicks for adding points """
         if self.adding_point and event.inaxes == self.ax:
-            # For each click, we're going to store x, y, and z interactively
+            # We get the 2D screen coordinates and use them to approximate 3D coordinates
+            x_screen, y_screen = event.xdata, event.ydata
+            x_lim = self.ax.get_xlim()
+            y_lim = self.ax.get_ylim()
+            z_lim = self.ax.get_zlim()
+
+            # Approximate the clicked point as a fraction of the axis limits
             if self.axis_selection == 0:  # x-axis
-                self.new_point[0] = event.xdata
+                self.new_point[0] = x_lim[0] + (x_lim[1] - x_lim[0]) * (x_screen - self.ax.bbox.x0) / self.ax.bbox.width
                 print(f"X selected: {self.new_point[0]}")
                 self.axis_selection = 1
             elif self.axis_selection == 1:  # y-axis
-                self.new_point[1] = event.ydata
+                self.new_point[1] = y_lim[0] + (y_lim[1] - y_lim[0]) * (y_screen - self.ax.bbox.y0) / self.ax.bbox.height
                 print(f"Y selected: {self.new_point[1]}")
                 self.axis_selection = 2
             elif self.axis_selection == 2:  # z-axis (use ydata as proxy)
-                self.new_point[2] = event.ydata
+                self.new_point[2] = y_lim[0] + (y_lim[1] - y_lim[0]) * (y_screen - self.ax.bbox.y0) / self.ax.bbox.height
                 print(f"Z selected: {self.new_point[2]}")
                 self.control_points.append(self.new_point.copy())
                 self.new_point = [0, 0, 0]  # Reset for the next point
@@ -69,7 +78,6 @@ class CurveEditor3D:
         self.points_display.set_val(points_str)
 
     def on_scroll(self, event):
-        """ Handle mouse scroll for zooming in/out on the plot """
         scale_factor = 0.9 if event.button == 'up' else 1.1  # Zoom in on scroll up, out on scroll down
 
         # Get current axis limits
