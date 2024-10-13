@@ -53,15 +53,11 @@ class CurveEditor3D:
         self.points_display = TextBox(points_display_ax, 'Points', initial='')
         self.update_points_display()
 
-        # Right section for modifying points in table format
-        modify_ax = plt.axes([0.85, 0.85, 0.1, 0.075])  # Shifted right
+        # Right section for modifying points
+        modify_ax = plt.axes([0.85, 0.85, 0.1, 0.075])
         self.modify_button = Button(modify_ax, 'Modify Points')
-        self.modify_button.on_clicked(self.show_modifiable_points)
-
-        # Save button
-        save_ax = plt.axes([0.85, 0.05, 0.1, 0.05])  # Shifted right
-        self.save_button = Button(save_ax, 'Save Points')
-        self.save_button.on_clicked(self.save_modified_points)
+        self.modify_button.on_clicked(self.modify_or_save_points)
+        self.is_modify_mode = True  # Track if we're in modify mode
 
         # Create modifiable fields container for X, Y, Z columns
         self.modifiable_fields = []
@@ -94,6 +90,20 @@ class CurveEditor3D:
         except ValueError:
             print("Please enter valid numerical values for the coordinates.")
 
+    def modify_or_save_points(self, event):
+        """ Toggle between modifying points and saving points """
+        if self.is_modify_mode:
+            # Switch to save mode
+            self.modify_button.label.set_text("Save Points")
+            self.show_modifiable_points(event)  # Show input fields for modifying points
+            self.is_modify_mode = False
+        else:
+            # Save the modified points
+            self.save_modified_points(event)
+            # Switch back to modify mode
+            self.modify_button.label.set_text("Modify Points")
+            self.is_modify_mode = True
+
     def show_modifiable_points(self, event):
         """ Show modifiable input fields for existing points in table format """
         self.clear_modifiable_fields()
@@ -110,6 +120,8 @@ class CurveEditor3D:
             z_input = TextBox(z_input_ax, f'Z{i+1}', initial=str(point[2]))
 
             self.modifiable_fields.append((x_input, y_input, z_input))
+
+        plt.draw()  # Redraw the canvas
 
     def clear_modifiable_fields(self):
         """ Clear the existing modifiable fields """
