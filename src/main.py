@@ -43,6 +43,11 @@ class CurveEditor3D:
         self.initial_points_button = Button(initial_points_ax, 'Initial Points')
         self.initial_points_button.on_clicked(self.add_initial_points)
 
+        # Clear button
+        clear_ax = plt.axes([0.05, 0.35, 0.2, 0.05])
+        self.clear_button = Button(clear_ax, 'Clear Points')
+        self.clear_button.on_clicked(self.clear_points)
+
         # Points Display
         points_display_ax = plt.axes([0.05, 0.05, 0.2, 0.2])
         self.points_display = TextBox(points_display_ax, 'Points', initial='')
@@ -133,6 +138,12 @@ class CurveEditor3D:
         self.clear_modifiable_fields()  # Hide the input fields after saving
         self.update_plot()
         self.update_points_display()
+
+    def clear_points(self, event):
+        """ Clear all points from the control points list and update the plot """
+        self.control_points = []  # Reset control points to an empty list
+        self.update_plot()  # Clear the plot
+        self.update_points_display()  # Update the display to reflect cleared points
 
     def update_plot(self):
         """ Update the plot with new control points and Bézier surface if there are enough points """
