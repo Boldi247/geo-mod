@@ -25,6 +25,21 @@ class CurveEditor3D:
         self.add_button = Button(add_ax, 'Add Point')
         self.add_button.on_clicked(self.add_point)
 
+        # Initial controlpoints button
+        self.initial_points = ([
+            [[-2.0, -1.0, -1.0], [-1.0, 2.0, 1.0], [1.0, -1.0, -1.0]],
+            [[-1.0, -0.5, 0.0], [1.0, 1.0, 1.5], [2.0, -0.5, 0.0]],   
+            [[0.0, -1.5, -1.0], [2.0, 2.0, 2.5], [3.0, -1.0, -1.0]]   
+        ])
+
+        #transform this array to a 1D array
+        self.initial_points = np.array(self.initial_points).reshape(-1, 3).tolist()
+
+        #create button
+        initial_points_ax = plt.axes([0.05, 0.45, 0.2, 0.05])
+        self.initial_points_button = Button(initial_points_ax, 'Initial Points')
+        self.initial_points_button.on_clicked(self.add_initial_points)
+
         # Points Display
         points_display_ax = plt.axes([0.05, 0.05, 0.2, 0.2])
         self.points_display = TextBox(points_display_ax, 'Points', initial='')
@@ -32,6 +47,12 @@ class CurveEditor3D:
 
         # Connect scroll event for zooming
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
+
+    def add_initial_points(self, event):
+        """ Add initial points to the control points list """
+        self.control_points = self.initial_points
+        self.update_plot()
+        self.update_points_display()
 
     def add_point(self, event):
         """ Add a point based on input from text boxes """
