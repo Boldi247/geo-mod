@@ -1,16 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
+from matplotlib import gridspec
 from scipy.special import factorial
 
 
 class CurveEditor3D:
     def __init__(self):
         self.control_points = []
-        self.fig = plt.figure(figsize=(12, 6))
-        self.ax = self.fig.add_subplot(111, projection='3d', position=[0.3, 0.1, 0.65, 0.8])
+        self.fig = plt.figure(figsize=(16, 8))  # Larger figure size
+        gs = gridspec.GridSpec(1, 2, width_ratios=[1, 2])  # Layout for left and right sections
+        
+        # Left section for adding points, initial points, and display
+        self.ax = self.fig.add_subplot(gs[1], projection='3d', position=[0.2, 0.1, 0.65, 0.8])
 
-        # Input TextBoxes for X, Y, and Z coordinates
+        # Input TextBoxes for adding points (X, Y, Z)
         x_input_ax = plt.axes([0.05, 0.75, 0.2, 0.05])
         self.x_input = TextBox(x_input_ax, 'X Coord')
 
@@ -25,17 +29,16 @@ class CurveEditor3D:
         self.add_button = Button(add_ax, 'Add Point')
         self.add_button.on_clicked(self.add_point)
 
-        # Initial controlpoints button
-        self.initial_points = ([
+        # Initial control points
+        self.initial_points = [
             [[-2.0, -1.0, -1.0], [-1.0, 2.0, 1.0], [1.0, -1.0, -1.0]],
-            [[-1.0, -0.5, 0.0], [1.0, 1.0, 1.5], [2.0, -0.5, 0.0]],   
-            [[0.0, -1.5, -1.0], [2.0, 2.0, 2.5], [3.0, -1.0, -1.0]]   
-        ])
+            [[-1.0, -0.5, 0.0], [1.0, 1.0, 1.5], [2.0, -0.5, 0.0]],
+            [[0.0, -1.5, -1.0], [2.0, 2.0, 2.5], [3.0, -1.0, -1.0]]
+        ]
 
-        #transform this array to a 1D array
         self.initial_points = np.array(self.initial_points).reshape(-1, 3).tolist()
 
-        #create button
+        # Initial Points button
         initial_points_ax = plt.axes([0.05, 0.45, 0.2, 0.05])
         self.initial_points_button = Button(initial_points_ax, 'Initial Points')
         self.initial_points_button.on_clicked(self.add_initial_points)
@@ -44,6 +47,19 @@ class CurveEditor3D:
         points_display_ax = plt.axes([0.05, 0.05, 0.2, 0.2])
         self.points_display = TextBox(points_display_ax, 'Points', initial='')
         self.update_points_display()
+
+        # Right section for modifying points in table format
+        modify_ax = plt.axes([0.85, 0.85, 0.1, 0.075])  # Shifted right
+        self.modify_button = Button(modify_ax, 'Modify Points')
+        self.modify_button.on_clicked(self.show_modifiable_points)
+
+        # Save button
+        save_ax = plt.axes([0.85, 0.05, 0.1, 0.05])  # Shifted right
+        self.save_button = Button(save_ax, 'Save Points')
+        self.save_button.on_clicked(self.save_modified_points)
+
+        # Create modifiable fields container for X, Y, Z columns
+        self.modifiable_fields = []
 
         # Connect scroll event for zooming
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
@@ -72,6 +88,51 @@ class CurveEditor3D:
             self.z_input.set_val('')
         except ValueError:
             print("Please enter valid numerical values for the coordinates.")
+
+    def show_modifiable_points(self, event):
+        """ Show modifiable input fields for existing points in table format """
+        self.clear_modifiable_fields()
+
+        # Increase space between rows and increase space between X, Y, Z fields
+        for i, point in enumerate(self.control_points):
+            x_input_ax = plt.axes([0.75, 0.7 - i * 0.07, 0.05, 0.03])  # Spacing between rows
+            x_input = TextBox(x_input_ax, f'X{i+1}', initial=str(point[0]))
+
+            y_input_ax = plt.axes([0.82, 0.7 - i * 0.07, 0.05, 0.03])  # Increased spacing between X and Y
+            y_input = TextBox(y_input_ax, f'Y{i+1}', initial=str(point[1]))
+
+            z_input_ax = plt.axes([0.89, 0.7 - i * 0.07, 0.05, 0.03])  # Increased spacing between Y and Z
+            z_input = TextBox(z_input_ax, f'Z{i+1}', initial=str(point[2]))
+
+            self.modifiable_fields.append((x_input, y_input, z_input))
+
+    def clear_modifiable_fields(self):
+        """ Clear the existing modifiable fields """
+        for x_input, y_input, z_input in self.modifiable_fields:
+            x_input_ax = x_input.ax
+            y_input_ax = y_input.ax
+            z_input_ax = z_input.ax
+            x_input_ax.remove()  # Remove the X input field
+            y_input_ax.remove()  # Remove the Y input field
+            z_input_ax.remove()  # Remove the Z input field
+
+        self.modifiable_fields = []
+        plt.draw()  # Redraw the canvas to reflect the removal of fields
+
+    def save_modified_points(self, event):
+        """ Save the modified points and update the plot """
+        for i, (x_input, y_input, z_input) in enumerate(self.modifiable_fields):
+            try:
+                x = float(x_input.text)
+                y = float(y_input.text)
+                z = float(z_input.text)
+                self.control_points[i] = [x, y, z]
+            except ValueError:
+                print(f"Invalid input for point {i+1}.")
+
+        self.clear_modifiable_fields()  # Hide the input fields after saving
+        self.update_plot()
+        self.update_points_display()
 
     def update_plot(self):
         """ Update the plot with new control points and Bézier surface if there are enough points """
