@@ -59,11 +59,36 @@ class CurveEditor3D:
         self.modify_button.on_clicked(self.modify_or_save_points)
         self.is_modify_mode = True  # Track if we're in modify mode
 
+        # Buttons to switch between surface types
+        self.selectedSurfaceType = 'bezier'
+
+        bezier_btn_ax = plt.axes([0.85, 0.75, 0.1, 0.075])
+        self.bezier_button = Button(bezier_btn_ax, 'Bézier')
+        self.bezier_button.on_clicked(lambda event: self.set_surface_type('bezier'))
+
+        b_spline_btn_ax = plt.axes([0.85, 0.65, 0.1, 0.075])
+        self.b_spline_button = Button(b_spline_btn_ax, 'B-Spline')
+        self.b_spline_button.on_clicked(lambda event: self.set_surface_type('b_spline'))
+
+        nurbs_btn_ax = plt.axes([0.85, 0.55, 0.1, 0.075])
+        self.nurbs_button = Button(nurbs_btn_ax, 'NURBS')
+        self.nurbs_button.on_clicked(lambda event: self.set_surface_type('nurbs'))
+
         # Create modifiable fields container for X, Y, Z columns
         self.modifiable_fields = []
 
         # Connect scroll event for zooming
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
+
+    def set_surface_type(self, event):
+        """ Set the selected surface type """
+        if event == 'bezier':
+            self.selectedSurfaceType = 'bezier'
+        elif event == 'b_spline':
+            self.selectedSurfaceType = 'b_spline'
+        elif event == 'nurbs':
+            self.selectedSurfaceType = 'nurbs'
+        print("Selected surface type:", self.selectedSurfaceType)
 
     def add_initial_points(self, event):
         """ Add initial points to the control points list """
