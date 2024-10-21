@@ -253,6 +253,14 @@ class CurveEditor3D:
 
         # Reshape the control points to form a grid
         return np.array(filled_points).reshape(grid_size, grid_size, 3)
+    
+    def plot_b_spline_surface(self, control_grid, steps=20):
+        """TODO: Plot a B-Spline surface using a grid of control points"""
+        pass
+
+    def b_spline_surface(self, u, v, control_points):
+        """TODO: Calculate a point on a B-Spline surface."""
+        pass
 
     def plot_bezier_surface(self, control_grid, steps=20):
         """ Plot a Bézier surface using a grid of control points """
