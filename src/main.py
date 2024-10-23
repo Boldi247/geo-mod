@@ -60,7 +60,7 @@ class CurveEditor3D:
         self.is_modify_mode = True  # Track if we're in modify mode
 
         # Buttons to switch between surface types
-        self.selectedSurfaceType = 'bezier'
+        self.selected_surface_type = 'bezier'
 
         bezier_btn_ax = plt.axes([0.85, 0.75, 0.1, 0.075])
         self.bezier_button = Button(bezier_btn_ax, 'Bézier')
@@ -83,12 +83,13 @@ class CurveEditor3D:
     def set_surface_type(self, event):
         """ Set the selected surface type """
         if event == 'bezier':
-            self.selectedSurfaceType = 'bezier'
+            self.selected_surface_type = 'bezier'
         elif event == 'b_spline':
-            self.selectedSurfaceType = 'b_spline'
+            self.selected_surface_type = 'b_spline'
         elif event == 'nurbs':
-            self.selectedSurfaceType = 'nurbs'
-        print("Selected surface type:", self.selectedSurfaceType)
+            self.selected_surface_type = 'nurbs'
+        self.update_plot()
+        print("Selected surface type:", self.selected_surface_type)
 
     def add_initial_points(self, event):
         """ Add initial points to the control points list """
@@ -202,11 +203,15 @@ class CurveEditor3D:
                         z_vals = [point1[2], point2[2]]
                         self.ax.plot(x_vals, y_vals, z_vals, color='yellow', linewidth=1)
 
-        # If there are at least 4 points, plot the Bézier surface
+        # If there are at least 4 points
         if len(self.control_points) >= 4:
             grid_size = int(np.ceil(np.sqrt(len(self.control_points))))  # Determine grid size (rounded up)
             control_grid = self.form_control_grid(self.control_points, grid_size)
-            self.plot_bezier_surface(control_grid)
+
+            if self.selected_surface_type == 'bezier':
+                self.plot_bezier_surface(control_grid)
+            elif self.selected_surface_type == 'b_spline':
+                self.plot_b_spline_surface(control_grid)
 
         plt.draw()
 
@@ -255,12 +260,49 @@ class CurveEditor3D:
         return np.array(filled_points).reshape(grid_size, grid_size, 3)
     
     def plot_b_spline_surface(self, control_grid, steps=20):
-        """TODO: Plot a B-Spline surface using a grid of control points"""
-        pass
+        """ Plot a B-Spline surface using a grid of control points """
+        u_vals = np.linspace(0, 1, steps)
+        v_vals = np.linspace(0, 1, steps)
+        
+        surface_points = np.zeros((steps, steps, 3))
 
-    def b_spline_surface(self, u, v, control_points):
-        """TODO: Calculate a point on a B-Spline surface."""
-        pass
+        for i, u in enumerate(u_vals):
+            for j, v in enumerate(v_vals):
+                surface_points[i, j] = self.b_spline_surface(u, v, control_grid)
+
+        # Plot the B-Spline surface
+        self.ax.plot_surface(surface_points[:, :, 0], surface_points[:, :, 1], surface_points[:, :, 2], color='cyan', alpha=0.7)
+
+    def b_spline_basis(self, i, k, t, knots):
+        """ Recursive Cox-de Boor formula for B-spline basis function """
+        if k == 0:
+            return 1.0 if knots[i] <= t < knots[i + 1] else 0.0
+        else:
+            denom1 = knots[i + k] - knots[i]
+            denom2 = knots[i + k + 1] - knots[i + 1]
+
+            term1 = ((t - knots[i]) / denom1) * self.b_spline_basis(i, k - 1, t, knots) if denom1 != 0 else 0
+            term2 = ((knots[i + k + 1] - t) / denom2) * self.b_spline_basis(i + 1, k - 1, t, knots) if denom2 != 0 else 0
+
+            return term1 + term2
+
+    def b_spline_surface(self, u, v, control_points, degree=3):
+        """ Calculate a point on a B-Spline surface """
+        n, m = control_points.shape[:2]
+        
+        # Create knot vectors (uniform knot vector for simplicity)
+        knot_vector_u = np.linspace(0, 1, n + degree + 1)
+        knot_vector_v = np.linspace(0, 1, m + degree + 1)
+
+        point = np.zeros(3)
+        
+        # Calculate the surface point using the B-spline basis functions
+        for i in range(n):
+            for j in range(m):
+                basis_u = self.b_spline_basis(i, degree, u, knot_vector_u)
+                basis_v = self.b_spline_basis(j, degree, v, knot_vector_v)
+                point += basis_u * basis_v * control_points[i][j]
+        return point
 
     def plot_bezier_surface(self, control_grid, steps=20):
         """ Plot a Bézier surface using a grid of control points """
