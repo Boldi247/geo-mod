@@ -8,6 +8,7 @@ from scipy.special import factorial
 class CurveEditor3D:
     def __init__(self):
         self.control_points = []
+        self.weights = []
         self.fig = plt.figure(figsize=(16, 8))  # Larger figure size
         gs = gridspec.GridSpec(1, 2, width_ratios=[1, 2])  # Layout for left and right sections
         
@@ -94,6 +95,7 @@ class CurveEditor3D:
     def add_initial_points(self, event):
         """ Add initial points to the control points list """
         self.control_points = self.initial_points
+        self.weights = [1.0] * len(self.control_points)  # Set default weights for NURBS
         self.update_plot()
         self.update_points_display()
 
@@ -106,6 +108,7 @@ class CurveEditor3D:
 
             new_point = [x, y, z]
             self.control_points.append(new_point)  # Add the new point
+            self.weights.append(1.0)  # Set default weight for the new point
             self.update_plot()  # Update the plot with the new point
             self.update_points_display()  # Update the list of points
 
@@ -212,6 +215,8 @@ class CurveEditor3D:
                 self.plot_bezier_surface(control_grid)
             elif self.selected_surface_type == 'b_spline':
                 self.plot_b_spline_surface(control_grid)
+            elif self.selected_surface_type == 'nurbs':
+                self.plot_nurbs_surface(control_grid)
 
         plt.draw()
 
@@ -336,6 +341,42 @@ class CurveEditor3D:
                 point += bernstein * control_points[i][j]
 
         return point
+
+    def plot_nurbs_surface(self, control_grid, steps=20):
+        """ Plot a NURBS surface using a grid of control points """
+        u_vals = np.linspace(0, 1, steps)
+        v_vals = np.linspace(0, 1, steps)
+
+        surface_points = np.zeros((steps, steps, 3))
+
+        for i, u in enumerate(u_vals):
+            for j, v in enumerate(v_vals):
+                surface_points[i, j] = self.nurbs_surface(u, v, control_grid, self.weights)
+
+        # Plot the NURBS surface
+        self.ax.plot_surface(surface_points[:, :, 0], surface_points[:, :, 1], surface_points[:, :, 2], color='cyan', alpha=0.7)
+
+    def nurbs_surface(self, u, v, control_points, weights, degree=3):
+        """ Calculate a point on a NURBS surface """
+        n, m = control_points.shape[:2]
+
+        # Create knot vectors (uniform knot vector for simplicity)
+        knot_vector_u = np.linspace(0, 1, n + degree + 1)
+        knot_vector_v = np.linspace(0, 1, m + degree + 1)
+
+        point = np.zeros(3)
+        weight_sum = 0.0
+
+        # Calculate the surface point using the B-spline basis functions and weights
+        for i in range(n):
+            for j in range(m):
+                basis_u = self.b_spline_basis(i, degree, u, knot_vector_u)
+                basis_v = self.b_spline_basis(j, degree, v, knot_vector_v)
+                weight = weights[i * m + j]
+                point += basis_u * basis_v * weight * control_points[i][j]
+                weight_sum += basis_u * basis_v * weight
+
+        return point / weight_sum if weight_sum != 0 else point
 
 
 # Main application
