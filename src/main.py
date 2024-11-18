@@ -8,7 +8,7 @@
 # Inititial points should not be present while this display type is selected
 
 # TODO: Investigate why the B Spline surface is displaying with a (0,0,0) controlpoint added every single time
-# TODO: Fix the matplotlib grid. It should be strictly in between a set of values. E.g: -10, 10, -10, 10, 0, 10
+# TODO: Fix the matplotlib grid. It should be strictly in between a set of values. E.g: -10, 10, -10, 10, 0, 10  ---- Done: Adam Szucs :D
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,6 +27,9 @@ class CurveEditor3D:
         # Left section for adding points, initial points, and display
         self.ax = self.fig.add_subplot(gs[1], projection='3d', position=[0.2, 0.1, 0.65, 0.8])
 
+        # Set axis limits before anything is plotted
+        self.set_axis_limits()
+
         # Input TextBoxes for adding points (X, Y, Z)
         x_input_ax = plt.axes([0.05, 0.75, 0.2, 0.05])
         self.x_input = TextBox(x_input_ax, 'X Coord')
@@ -44,9 +47,9 @@ class CurveEditor3D:
 
         # Initial control points
         self.initial_points = [
-            [[-2.0, -1.0, -1.0], [-1.0, 2.0, 1.0], [1.0, -1.0, -1.0]],
-            [[-1.0, -0.5, 0.0], [1.0, 1.0, 1.5], [2.0, -0.5, 0.0]],
-            [[0.0, -1.5, -1.0], [2.0, 2.0, 2.5], [3.0, -1.0, -1.0]]
+            [[-5., -5., 0.], [0., -5., 5.], [5., -5., 0.]],
+            [[-5., 0., 5.], [0., 0., 10.], [5., 0., 5.]],
+            [[-5., 5., 0.], [0., 5., 5.], [5., 5., 0.]]
         ]
 
         self.initial_points = np.array(self.initial_points).reshape(-1, 3).tolist()
@@ -198,9 +201,17 @@ class CurveEditor3D:
         self.update_plot()  # Clear the plot
         self.update_points_display()  # Update the display to reflect cleared points
 
+    def set_axis_limits(self):
+        """ Set constant axis limits from -10 to 10 in all directions """
+        self.ax.set_xlim([-10, 10])
+        self.ax.set_ylim([-10, 10])
+        self.ax.set_zlim([-10, 10])  # Z-axis limits from 0 to 10 to avoid negative Z values
+
+
     def update_plot(self):
         """ Update the plot with new control points and Bézier surface if there are enough points """
         self.ax.cla()  # Clear the previous plot
+        self.set_axis_limits()  # Reset axis limits
 
         if len(self.control_points) < 1:
             return
