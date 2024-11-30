@@ -283,14 +283,22 @@ class CurveEditor3D:
         u_vals = np.linspace(0, 1, steps)
         v_vals = np.linspace(0, 1, steps)
 
-        surface_points = np.zeros((steps, steps, 3))
+        surface_points = []
 
         # Compute B-Spline surface points
-        for i, u in enumerate(u_vals):
-            for j, v in enumerate(v_vals):
-                surface_points[i, j] = self.b_spline_surface(u, v, control_grid)
+        for u in u_vals:
+            row = []
+            for v in v_vals:
+                point = self.b_spline_surface(u, v, control_grid)
+                if point is not None:
+                    row.append(point)
+                else:
+                    row.append([np.nan, np.nan, np.nan])  # Use NaN for invalid points
+            surface_points.append(row)
 
-        # Extract X, Y, Z coordinates for plotting
+        surface_points = np.array(surface_points)
+
+        # Extract X, Y, Z coordinates
         X = surface_points[:, :, 0]
         Y = surface_points[:, :, 1]
         Z = surface_points[:, :, 2]
@@ -299,8 +307,9 @@ class CurveEditor3D:
         self.ax.plot_surface(X, Y, Z, color='cyan', alpha=0.7, edgecolor='none')
 
         # Plot individual points on the surface
+        valid_points = ~np.isnan(X)
         self.ax.scatter(
-            X.flatten(), Y.flatten(), Z.flatten(),
+            X[valid_points], Y[valid_points], Z[valid_points],
             color='red', s=10, label='Surface Points'
         )
 
@@ -315,21 +324,8 @@ class CurveEditor3D:
         self.ax.legend()
 
 
-    def b_spline_basis(self, i, k, t, knots):
-        """ Recursive Cox-de Boor formula for B-spline basis function """
-        if k == 0:
-            return 1.0 if knots[i] <= t < knots[i + 1] else 0.0
-        else:
-            denom1 = knots[i + k] - knots[i]
-            denom2 = knots[i + k + 1] - knots[i + 1]
-
-            term1 = ((t - knots[i]) / denom1) * self.b_spline_basis(i, k - 1, t, knots) if denom1 != 0 else 0
-            term2 = ((knots[i + k + 1] - t) / denom2) * self.b_spline_basis(i + 1, k - 1, t, knots) if denom2 != 0 else 0
-
-            return term1 + term2
-
     def b_spline_surface(self, u, v, control_points, degree=3):
-        """ Calculate a point on a B-Spline surface """
+        """Calculate a point on a B-Spline surface."""
         n, m = control_points.shape[:2]
 
         # Create knot vectors (uniform knot vector for simplicity)
@@ -338,13 +334,42 @@ class CurveEditor3D:
 
         point = np.zeros(3)
 
-        # Calculate the surface point using the B-spline basis functions
+        # Calculate the surface point using the B-spline basis functions (no weights)
+        weight_sum = 0.0  # Track total weight for validation
+
         for i in range(n):
             for j in range(m):
                 basis_u = self.b_spline_basis(i, degree, u, knot_vector_u)
                 basis_v = self.b_spline_basis(j, degree, v, knot_vector_v)
-                point += basis_u * basis_v * control_points[i][j]
-        return point
+                weight = basis_u * basis_v
+                point += weight * control_points[i][j]
+                weight_sum += weight
+
+        # If the weight sum is too small, return None (to avoid zero points)
+        if weight_sum < 1e-6:  # You can adjust this threshold
+            print(f"Invalid surface point at (u, v) = ({u}, {v}), weight sum = {weight_sum}")
+            return None
+
+        # Normalize the point by weight sum
+        return point / weight_sum
+
+
+    def b_spline_basis(self, i, k, t, knots):
+        """ Recursive Cox-de Boor formula for B-spline basis function """
+        if k == 0:
+            return 1.0 if knots[i] <= t < knots[i + 1] else 0.0
+        else:
+            denom1 = knots[i + k] - knots[i]
+            denom2 = knots[i + k + 1] - knots[i + 1]
+
+            # Avoid division by zero or very small values
+            if denom1 == 0 or denom2 == 0:
+                return 0.0
+
+            term1 = ((t - knots[i]) / denom1) * self.b_spline_basis(i, k - 1, t, knots)
+            term2 = ((knots[i + k + 1] - t) / denom2) * self.b_spline_basis(i + 1, k - 1, t, knots)
+
+            return term1 + term2
 
     def plot_bezier_surface(self, control_grid, steps=20):
         """Plot a Bézier surface using a grid of control points and show individual points."""
