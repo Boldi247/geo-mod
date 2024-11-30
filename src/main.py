@@ -98,6 +98,7 @@ class CurveEditor3D:
 
     def set_surface_type(self, event):
         """ Set the selected surface type """
+
         if event == 'bezier':
             self.selected_surface_type = 'bezier'
         elif event == 'b_spline':
@@ -219,17 +220,39 @@ class CurveEditor3D:
         # Draw the control points
         self.ax.scatter(*zip(*self.control_points), color='black', label='Control Points')
 
-        # Draw lines connecting control points
+        # Connection logic for different surface types
         if len(self.control_points) >= 2:
-            for i, point1 in enumerate(self.control_points):
-                for j, point2 in enumerate(self.control_points):
-                    if i != j:
-                        x_vals = [point1[0], point2[0]]
-                        y_vals = [point1[1], point2[1]]
-                        z_vals = [point1[2], point2[2]]
-                        self.ax.plot(x_vals, y_vals, z_vals, color='yellow', linewidth=1)
+            if self.selected_surface_type == 'bezier':
+                # Connect points consecutively
+                for i in range(len(self.control_points) - 1):
+                    point1 = self.control_points[i]
+                    point2 = self.control_points[i + 1]
+                    x_vals = [point1[0], point2[0]]
+                    y_vals = [point1[1], point2[1]]
+                    z_vals = [point1[2], point2[2]]
+                    self.ax.plot(x_vals, y_vals, z_vals, color='yellow', linewidth=1)
 
-        # If there are at least 4 points
+            elif self.selected_surface_type == 'b_spline':
+                # Connect points in a closed loop for visualization
+                for i in range(len(self.control_points)):
+                    point1 = self.control_points[i]
+                    point2 = self.control_points[(i + 1) % len(self.control_points)]  # Wrap-around connection
+                    x_vals = [point1[0], point2[0]]
+                    y_vals = [point1[1], point2[1]]
+                    z_vals = [point1[2], point2[2]]
+                    self.ax.plot(x_vals, y_vals, z_vals, color='blue', linewidth=1)
+
+            elif self.selected_surface_type == 'nurbs':
+                # Connect points consecutively, but distinguish with different line style or width
+                for i in range(len(self.control_points) - 1):
+                    point1 = self.control_points[i]
+                    point2 = self.control_points[i + 1]
+                    x_vals = [point1[0], point2[0]]
+                    y_vals = [point1[1], point2[1]]
+                    z_vals = [point1[2], point2[2]]
+                    self.ax.plot(x_vals, y_vals, z_vals, color='green', linestyle='--', linewidth=2)
+
+        # If there are at least 4 points, plot the surface
         if len(self.control_points) >= 4:
             grid_size = int(np.ceil(np.sqrt(len(self.control_points))))  # Determine grid size (rounded up)
             control_grid = self.form_control_grid(self.control_points, grid_size)
@@ -242,6 +265,7 @@ class CurveEditor3D:
                 self.plot_nurbs_surface(control_grid)
 
         plt.draw()
+
 
     def update_points_display(self):
         """ Update the display of the control points """
@@ -345,25 +369,30 @@ class CurveEditor3D:
                 v_val = V[i, j]
                 surface_points[i, j] = self.bezier_surface(u_val, v_val, control_grid)
 
+        # Extract X, Y, Z coordinates for plotting
+        X = surface_points[:, :, 0]
+        Y = surface_points[:, :, 1]
+        Z = surface_points[:, :, 2]
+
         # Plot the Bézier surface
-        self.ax.plot_surface(surface_points[:, :, 0], surface_points[:, :, 1], surface_points[:, :, 2], color='cyan', alpha=0.7)
+        self.ax.plot_surface(X, Y, Z, color='blue', alpha=0.6)
 
-    def bezier_surface(self, u, v, control_points):
-        """Calculate a point on a Bézier surface."""
-        n = control_points.shape[0] - 1
-        m = control_points.shape[1] - 1
-
+    def bezier_surface(self, u, v, control_grid):
+        """ Compute a point on a Bézier surface """
+        n, m = control_grid.shape[:2]
         point = np.zeros(3)
-        for i in range(n + 1):
-            for j in range(m + 1):
-                # Bernstein polynomial
-                bernstein = (factorial(n) / (factorial(i) * factorial(n - i))) * \
-                            (factorial(m) / (factorial(j) * factorial(m - j))) * \
-                            (u ** i) * ((1 - u) ** (n - i)) * \
-                            (v ** j) * ((1 - v) ** (m - j))
-                point += bernstein * control_points[i][j]
+
+        for i in range(n):
+            for j in range(m):
+                bernstein_u = self.bernstein(i, n - 1, u)
+                bernstein_v = self.bernstein(j, m - 1, v)
+                point += bernstein_u * bernstein_v * control_grid[i, j]
 
         return point
+
+    def bernstein(self, i, n, t):
+        """ Compute the Bernstein polynomial value """
+        return factorial(n) / (factorial(i) * factorial(n - i)) * (t ** i) * ((1 - t) ** (n - i))
 
     def plot_nurbs_surface(self, control_grid, steps=20):
         """ Plot a NURBS surface using a grid of control points """
