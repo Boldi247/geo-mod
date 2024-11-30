@@ -1,14 +1,6 @@
-# TODO: Nurbs surface implementation is incorrect, correction needed.
-# There should be an input field visible, if the user selects NURBS.
-# Clicking on it should hide the x,y,z input fields.
-# Clicking on it should also clear the current points array
-# The user needs to input information about the dimensions (e.g: 4x4)
-# Hence this, there should be a cap for the number of control points, depending on the inputted dimension
-# The control points should be inputted just after that.
-# Inititial points should not be present while this display type is selected
-
 # TODO: Investigate why the B Spline surface is displaying with a (0,0,0) controlpoint added every single time
 # TODO: Fix the matplotlib grid. It should be strictly in between a set of values. E.g: -10, 10, -10, 10, 0, 10  ---- Done: Adam Szucs :D
+# TODO: control points should be consecutively connected - Done: Boldizsar Kovacs
 
 import numpy as np
 import matplotlib.pyplot as plt
