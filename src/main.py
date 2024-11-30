@@ -1,14 +1,6 @@
-# TODO: Nurbs surface implementation is incorrect, correction needed.
-# There should be an input field visible, if the user selects NURBS.
-# Clicking on it should hide the x,y,z input fields.
-# Clicking on it should also clear the current points array
-# The user needs to input information about the dimensions (e.g: 4x4)
-# Hence this, there should be a cap for the number of control points, depending on the inputted dimension
-# The control points should be inputted just after that.
-# Inititial points should not be present while this display type is selected
-
 # TODO: Investigate why the B Spline surface is displaying with a (0,0,0) controlpoint added every single time
 # TODO: Fix the matplotlib grid. It should be strictly in between a set of values. E.g: -10, 10, -10, 10, 0, 10  ---- Done: Adam Szucs :D
+# TODO: control points should be consecutively connected - Done: Boldizsar Kovacs
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,7 +15,7 @@ class CurveEditor3D:
         self.weights = []
         self.fig = plt.figure(figsize=(16, 8))  # Larger figure size
         gs = gridspec.GridSpec(1, 2, width_ratios=[1, 2])  # Layout for left and right sections
-        
+
         # Left section for adding points, initial points, and display
         self.ax = self.fig.add_subplot(gs[1], projection='3d', position=[0.2, 0.1, 0.65, 0.8])
 
@@ -98,6 +90,7 @@ class CurveEditor3D:
 
     def set_surface_type(self, event):
         """ Set the selected surface type """
+
         if event == 'bezier':
             self.selected_surface_type = 'bezier'
         elif event == 'b_spline':
@@ -216,9 +209,6 @@ class CurveEditor3D:
         if len(self.control_points) < 1:
             return
 
-        # Draw the control points
-        self.ax.scatter(*zip(*self.control_points), color='black', label='Control Points')
-
         # Draw lines connecting control points
         if len(self.control_points) >= 2:
             for i, point1 in enumerate(self.control_points):
@@ -242,6 +232,7 @@ class CurveEditor3D:
                 self.plot_nurbs_surface(control_grid)
 
         plt.draw()
+
 
     def update_points_display(self):
         """ Update the display of the control points """
@@ -286,20 +277,43 @@ class CurveEditor3D:
 
         # Reshape the control points to form a grid
         return np.array(filled_points).reshape(grid_size, grid_size, 3)
-    
+
     def plot_b_spline_surface(self, control_grid, steps=20):
-        """ Plot a B-Spline surface using a grid of control points """
+        """Plot a B-Spline surface using a grid of control points and show individual points."""
         u_vals = np.linspace(0, 1, steps)
         v_vals = np.linspace(0, 1, steps)
-        
+
         surface_points = np.zeros((steps, steps, 3))
 
+        # Compute B-Spline surface points
         for i, u in enumerate(u_vals):
             for j, v in enumerate(v_vals):
                 surface_points[i, j] = self.b_spline_surface(u, v, control_grid)
 
+        # Extract X, Y, Z coordinates for plotting
+        X = surface_points[:, :, 0]
+        Y = surface_points[:, :, 1]
+        Z = surface_points[:, :, 2]
+
         # Plot the B-Spline surface
-        self.ax.plot_surface(surface_points[:, :, 0], surface_points[:, :, 1], surface_points[:, :, 2], color='cyan', alpha=0.7)
+        self.ax.plot_surface(X, Y, Z, color='cyan', alpha=0.7, edgecolor='none')
+
+        # Plot individual points on the surface
+        self.ax.scatter(
+            X.flatten(), Y.flatten(), Z.flatten(),
+            color='red', s=10, label='Surface Points'
+        )
+
+        # Highlight control points
+        control_points_flat = [p for row in control_grid for p in row]
+        self.ax.scatter(
+            *zip(*control_points_flat),
+            color='black', s=20, label='Control Points'
+        )
+
+        # Add a legend to differentiate points
+        self.ax.legend()
+
 
     def b_spline_basis(self, i, k, t, knots):
         """ Recursive Cox-de Boor formula for B-spline basis function """
@@ -317,13 +331,13 @@ class CurveEditor3D:
     def b_spline_surface(self, u, v, control_points, degree=3):
         """ Calculate a point on a B-Spline surface """
         n, m = control_points.shape[:2]
-        
+
         # Create knot vectors (uniform knot vector for simplicity)
         knot_vector_u = np.linspace(0, 1, n + degree + 1)
         knot_vector_v = np.linspace(0, 1, m + degree + 1)
 
         point = np.zeros(3)
-        
+
         # Calculate the surface point using the B-spline basis functions
         for i in range(n):
             for j in range(m):
@@ -333,54 +347,103 @@ class CurveEditor3D:
         return point
 
     def plot_bezier_surface(self, control_grid, steps=20):
-        """ Plot a Bézier surface using a grid of control points """
+        """Plot a Bézier surface using a grid of control points and show individual points."""
         u = np.linspace(0, 1, steps)
         v = np.linspace(0, 1, steps)
         U, V = np.meshgrid(u, v)
         surface_points = np.zeros((steps, steps, 3))
 
+        # Compute Bézier surface points
         for i in range(steps):
             for j in range(steps):
                 u_val = U[i, j]
                 v_val = V[i, j]
                 surface_points[i, j] = self.bezier_surface(u_val, v_val, control_grid)
 
+        # Extract X, Y, Z coordinates for plotting
+        X = surface_points[:, :, 0]
+        Y = surface_points[:, :, 1]
+        Z = surface_points[:, :, 2]
+
         # Plot the Bézier surface
-        self.ax.plot_surface(surface_points[:, :, 0], surface_points[:, :, 1], surface_points[:, :, 2], color='cyan', alpha=0.7)
+        self.ax.plot_surface(X, Y, Z, color='blue', alpha=0.6, edgecolor='none')
 
-    def bezier_surface(self, u, v, control_points):
-        """Calculate a point on a Bézier surface."""
-        n = control_points.shape[0] - 1
-        m = control_points.shape[1] - 1
+        # Plot individual points on the surface
+        self.ax.scatter(
+            X.flatten(), Y.flatten(), Z.flatten(),
+            color='red', s=10, label='Surface Points'
+        )
 
+        # Optionally, highlight control points as well
+        control_points_flat = [p for row in control_grid for p in row]
+        self.ax.scatter(
+            *zip(*control_points_flat),
+            color='black', s=20, label='Control Points'
+        )
+
+        # Add a legend to differentiate points
+        self.ax.legend()
+
+
+    def bezier_surface(self, u, v, control_grid):
+        """ Compute a point on a Bézier surface """
+        n, m = control_grid.shape[:2]
         point = np.zeros(3)
-        for i in range(n + 1):
-            for j in range(m + 1):
-                # Bernstein polynomial
-                bernstein = (factorial(n) / (factorial(i) * factorial(n - i))) * \
-                            (factorial(m) / (factorial(j) * factorial(m - j))) * \
-                            (u ** i) * ((1 - u) ** (n - i)) * \
-                            (v ** j) * ((1 - v) ** (m - j))
-                point += bernstein * control_points[i][j]
+
+        for i in range(n):
+            for j in range(m):
+                bernstein_u = self.bernstein(i, n - 1, u)
+                bernstein_v = self.bernstein(j, m - 1, v)
+                point += bernstein_u * bernstein_v * control_grid[i, j]
 
         return point
 
+    def bernstein(self, i, n, t):
+        """ Compute the Bernstein polynomial value """
+        return factorial(n) / (factorial(i) * factorial(n - i)) * (t ** i) * ((1 - t) ** (n - i))
+
     def plot_nurbs_surface(self, control_grid, steps=20):
-        """ Plot a NURBS surface using a grid of control points """
+        """Plot a NURBS surface using a grid of control points and show individual points."""
         u_vals = np.linspace(0, 1, steps)
         v_vals = np.linspace(0, 1, steps)
 
-        surface_points = np.zeros((steps, steps, 3))
+        surface_points = np.full((steps, steps, 3), np.nan)  # Use NaN to skip invalid points
 
+        # Compute NURBS surface points
         for i, u in enumerate(u_vals):
             for j, v in enumerate(v_vals):
-                surface_points[i, j] = self.nurbs_surface(u, v, control_grid, self.weights)
+                point = self.nurbs_surface(u, v, control_grid, self.weights)
+                if point is not None:
+                    surface_points[i, j] = point
+
+        # Extract X, Y, Z coordinates, ignoring NaNs
+        X = surface_points[:, :, 0]
+        Y = surface_points[:, :, 1]
+        Z = surface_points[:, :, 2]
 
         # Plot the NURBS surface
-        self.ax.plot_surface(surface_points[:, :, 0], surface_points[:, :, 1], surface_points[:, :, 2], color='cyan', alpha=0.7)
+        self.ax.plot_surface(X, Y, Z, color='cyan', alpha=0.7, edgecolor='none')
+
+        # Plot individual points on the surface
+        valid_points = ~np.isnan(X)
+        self.ax.scatter(
+            X[valid_points], Y[valid_points], Z[valid_points],
+            color='red', s=10, label='Surface Points'
+        )
+
+        # Highlight control points
+        control_points_flat = [p for row in control_grid for p in row]
+        self.ax.scatter(
+            *zip(*control_points_flat),
+            color='black', s=20, label='Control Points'
+        )
+
+        # Add a legend to differentiate points
+        self.ax.legend()
+
 
     def nurbs_surface(self, u, v, control_points, weights, degree=3):
-        """ Calculate a point on a NURBS surface """
+        """Calculate a point on a NURBS surface."""
         n, m = control_points.shape[:2]
 
         # Create knot vectors (uniform knot vector for simplicity)
@@ -399,7 +462,8 @@ class CurveEditor3D:
                 point += basis_u * basis_v * weight * control_points[i][j]
                 weight_sum += basis_u * basis_v * weight
 
-        return point / weight_sum if weight_sum != 0 else point
+        # Avoid adding invalid points
+        return point / weight_sum if weight_sum > 1e-6 else None
 
 
 # Main application
