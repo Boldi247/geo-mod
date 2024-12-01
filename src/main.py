@@ -32,27 +32,35 @@ class CurveEditor3D:
         z_input_ax = plt.axes([0.05, 0.55, 0.2, 0.05])
         self.z_input = TextBox(z_input_ax, 'Z Coord')
 
+        # Weight input for NURBS
+        weight_input_ax = plt.axes([0.05, 0.45, 0.2, 0.05])
+        self.weight_input = TextBox(weight_input_ax, 'Weight', initial='1.0')
+        self.weight_input.set_active(False)  # Initially hidden
+
         # Add Point button
         add_ax = plt.axes([0.05, 0.85, 0.2, 0.075])
         self.add_button = Button(add_ax, 'Add Point')
         self.add_button.on_clicked(self.add_point)
 
-        # Initial control points
+        # Initial control points for Bézier and B-Spline
         self.initial_points = [
             [[-5., -5., 0.], [0., -5., 5.], [5., -5., 0.]],
             [[-5., 0., 5.], [0., 0., 10.], [5., 0., 5.]],
             [[-5., 5., 0.], [0., 5., 5.], [5., 5., 0.]]
         ]
-
         self.initial_points = np.array(self.initial_points).reshape(-1, 3).tolist()
 
+        # Initial control points for NURBS with different weights
+        self.nurbs_initial_points = self.initial_points
+        self.nurbs_weights = [3.0, 2.0, 5.0, 2.0, 3.0, 2.0, 4.0, 2.0, 6.0]
+
         # Initial Points button
-        initial_points_ax = plt.axes([0.05, 0.45, 0.2, 0.05])
+        initial_points_ax = plt.axes([0.05, 0.35, 0.2, 0.05])
         self.initial_points_button = Button(initial_points_ax, 'Initial Points')
         self.initial_points_button.on_clicked(self.add_initial_points)
 
         # Clear button
-        clear_ax = plt.axes([0.05, 0.35, 0.2, 0.05])
+        clear_ax = plt.axes([0.05, 0.25, 0.2, 0.05])
         self.clear_button = Button(clear_ax, 'Clear Points')
         self.clear_button.on_clicked(self.clear_points)
 
@@ -89,21 +97,31 @@ class CurveEditor3D:
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
 
     def set_surface_type(self, event):
-        """ Set the selected surface type """
-
-        if event == 'bezier':
-            self.selected_surface_type = 'bezier'
-        elif event == 'b_spline':
-            self.selected_surface_type = 'b_spline'
-        elif event == 'nurbs':
-            self.selected_surface_type = 'nurbs'
-        self.update_plot()
+        """ Set the selected surface type and handle weight input visibility """
+        self.selected_surface_type = event
         print("Selected surface type:", self.selected_surface_type)
 
+        if self.selected_surface_type == 'nurbs':
+            self.control_points = self.nurbs_initial_points
+            self.weights = self.nurbs_weights
+            self.weight_input.set_active(True)  # Show weight input
+        else:
+            self.control_points = self.initial_points
+            self.weights = [1.0] * len(self.control_points)  # Uniform weights for Bézier and B-Spline
+            self.weight_input.set_active(False)  # Hide weight input
+
+        self.update_plot()
+        self.update_points_display()
+
     def add_initial_points(self, event):
-        """ Add initial points to the control points list """
-        self.control_points = self.initial_points
-        self.weights = [1.0] * len(self.control_points)  # Set default weights for NURBS
+        """ Add initial points to the control points list based on the surface type """
+        if self.selected_surface_type == 'nurbs':
+            self.control_points = self.nurbs_initial_points
+            self.weights = self.nurbs_weights
+        else:
+            self.control_points = self.initial_points
+            self.weights = [1.0] * len(self.control_points)
+
         self.update_plot()
         self.update_points_display()
 
@@ -113,10 +131,11 @@ class CurveEditor3D:
             x = float(self.x_input.text)
             y = float(self.y_input.text)
             z = float(self.z_input.text)
+            weight = float(self.weight_input.text) if self.selected_surface_type == 'nurbs' else 1.0
 
             new_point = [x, y, z]
             self.control_points.append(new_point)  # Add the new point
-            self.weights.append(1.0)  # Set default weight for the new point
+            self.weights.append(weight)  # Add the weight
             self.update_plot()  # Update the plot with the new point
             self.update_points_display()  # Update the list of points
 
@@ -124,6 +143,7 @@ class CurveEditor3D:
             self.x_input.set_val('')
             self.y_input.set_val('')
             self.z_input.set_val('')
+            self.weight_input.set_val('1.0')  # Reset weight to default
         except ValueError:
             print("Please enter valid numerical values for the coordinates.")
 
@@ -236,7 +256,8 @@ class CurveEditor3D:
 
     def update_points_display(self):
         """ Update the display of the control points """
-        points_str = "\n".join([f"({x[0]:.2f}, {x[1]:.2f}, {x[2]:.2f})" for x in self.control_points])
+        points_str = "\n".join([f"({x[0]:.2f}, {x[1]:.2f}, {x[2]:.2f}, w={w:.2f})"
+                                for x, w in zip(self.control_points, self.weights)])
         self.points_display.set_val(points_str)
 
     def on_scroll(self, event):
@@ -447,7 +468,7 @@ class CurveEditor3D:
         Z = surface_points[:, :, 2]
 
         # Plot the NURBS surface
-        self.ax.plot_surface(X, Y, Z, color='cyan', alpha=0.7, edgecolor='none')
+        self.ax.plot_surface(X, Y, Z, color='magenta', alpha=0.7, edgecolor='none')
 
         # Plot individual points on the surface
         valid_points = ~np.isnan(X)
