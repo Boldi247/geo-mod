@@ -13,6 +13,8 @@ class CurveEditor3D:
     def __init__(self):
         self.control_points = []
         self.weights = []
+        self.modifiable_fields = []  # Initialize modifiable_fields
+        self.headers = []  # Initialize headers to store table headers
         self.fig = plt.figure(figsize=(16, 8))  # Larger figure size
         gs = gridspec.GridSpec(1, 2, width_ratios=[1, 2])  # Layout for left and right sections
 
@@ -54,20 +56,24 @@ class CurveEditor3D:
         self.nurbs_initial_points = self.initial_points
         self.nurbs_weights = [3.0, 2.0, 5.0, 2.0, 3.0, 2.0, 4.0, 2.0, 6.0]
 
-        # Initial Points button
+        # Initial Points button for uniform weights
         initial_points_ax = plt.axes([0.05, 0.35, 0.2, 0.05])
-        self.initial_points_button = Button(initial_points_ax, 'Initial Points')
-        self.initial_points_button.on_clicked(self.add_initial_points)
+        self.initial_points_button = Button(initial_points_ax, 'Uniform Weights')
+        self.initial_points_button.on_clicked(self.add_uniform_initial_points)
+
+        # Initial Points button for NURBS-specific weights
+        nurbs_points_ax = plt.axes([0.05, 0.25, 0.2, 0.05])
+        self.nurbs_points_button = Button(nurbs_points_ax, 'Different Weights')
+        self.nurbs_points_button.on_clicked(self.add_nurbs_initial_points)
 
         # Clear button
-        clear_ax = plt.axes([0.05, 0.25, 0.2, 0.05])
+        clear_ax = plt.axes([0.05, 0.15, 0.2, 0.05])
         self.clear_button = Button(clear_ax, 'Clear Points')
         self.clear_button.on_clicked(self.clear_points)
 
         # Points Display
-        points_display_ax = plt.axes([0.05, 0.05, 0.2, 0.2])
+        points_display_ax = plt.axes([0.05, 0.05, 0.2, 0.075])
         self.points_display = TextBox(points_display_ax, 'Points', initial='')
-        self.update_points_display()
 
         # Right section for modifying points
         modify_ax = plt.axes([0.85, 0.85, 0.1, 0.075])
@@ -90,38 +96,28 @@ class CurveEditor3D:
         self.nurbs_button = Button(nurbs_btn_ax, 'NURBS')
         self.nurbs_button.on_clicked(lambda event: self.set_surface_type('nurbs'))
 
-        # Create modifiable fields container for X, Y, Z columns
-        self.modifiable_fields = []
-
-        # Connect scroll event for zooming
-        self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
+        self.update_points_display()
 
     def set_surface_type(self, event):
         """ Set the selected surface type and handle weight input visibility """
         self.selected_surface_type = event
         print("Selected surface type:", self.selected_surface_type)
 
-        if self.selected_surface_type == 'nurbs':
-            self.control_points = self.nurbs_initial_points
-            self.weights = self.nurbs_weights
-            self.weight_input.set_active(True)  # Show weight input
-        else:
-            self.control_points = self.initial_points
-            self.weights = [1.0] * len(self.control_points)  # Uniform weights for Bézier and B-Spline
-            self.weight_input.set_active(False)  # Hide weight input
+        # Show or hide weight input depending on surface type
+        self.weight_input.set_active(self.selected_surface_type == 'nurbs')
+        self.update_plot()
 
+    def add_uniform_initial_points(self, event):
+        """ Add initial points with uniform weights """
+        self.control_points = self.initial_points
+        self.weights = [1.0] * len(self.control_points)
         self.update_plot()
         self.update_points_display()
-
-    def add_initial_points(self, event):
-        """ Add initial points to the control points list based on the surface type """
-        if self.selected_surface_type == 'nurbs':
-            self.control_points = self.nurbs_initial_points
-            self.weights = self.nurbs_weights
-        else:
-            self.control_points = self.initial_points
-            self.weights = [1.0] * len(self.control_points)
-
+    
+    def add_nurbs_initial_points(self, event):
+        """ Add initial points with different weights """
+        self.control_points = self.nurbs_initial_points
+        self.weights = self.nurbs_weights
         self.update_plot()
         self.update_points_display()
 
@@ -152,57 +148,82 @@ class CurveEditor3D:
         if self.is_modify_mode:
             # Switch to save mode
             self.modify_button.label.set_text("Save Points")
-            self.show_modifiable_points(event)  # Show input fields for modifying points
+            self.show_modifiable_points()  # Show input fields for modifying points
             self.is_modify_mode = False
         else:
             # Save the modified points
-            self.save_modified_points(event)
+            self.save_modified_points()
             # Switch back to modify mode
             self.modify_button.label.set_text("Modify Points")
             self.is_modify_mode = True
 
-    def show_modifiable_points(self, event):
+    def show_modifiable_points(self):
         """ Show modifiable input fields for existing points in table format """
         self.clear_modifiable_fields()
+        self.modifiable_fields = []
+        self.headers = []  # Store headers for later removal
 
-        # Increase space between rows and increase space between X, Y, Z fields
-        for i, point in enumerate(self.control_points):
-            x_input_ax = plt.axes([0.75, 0.7 - i * 0.07, 0.05, 0.03])  # Spacing between rows
-            x_input = TextBox(x_input_ax, f'X{i+1}', initial=str(point[0]))
+        # Add headers for the table
+        header_ax = plt.axes([0.72, 0.5, 0.25, 0.03])  # Adjusted header position
+        header_ax.axis("off")
+        header_ax.text(0.1, 0.5, "X", fontsize=10, ha='center', transform=header_ax.transAxes)
+        header_ax.text(0.35, 0.5, "Y", fontsize=10, ha='center', transform=header_ax.transAxes)
+        header_ax.text(0.6, 0.5, "Z", fontsize=10, ha='center', transform=header_ax.transAxes)
+        header_ax.text(0.85, 0.5, "W", fontsize=10, ha='center', transform=header_ax.transAxes)
+        self.headers.append(header_ax)  # Save the header for later removal
 
-            y_input_ax = plt.axes([0.82, 0.7 - i * 0.07, 0.05, 0.03])  # Increased spacing between X and Y
-            y_input = TextBox(y_input_ax, f'Y{i+1}', initial=str(point[1]))
+        # Create input fields for each control point and weight
+        for i, (point, weight) in enumerate(zip(self.control_points, self.weights)):
+            y_pos = 0.45 - i * 0.07  # Increased spacing between rows
 
-            z_input_ax = plt.axes([0.89, 0.7 - i * 0.07, 0.05, 0.03])  # Increased spacing between Y and Z
-            z_input = TextBox(z_input_ax, f'Z{i+1}', initial=str(point[2]))
+            x_input_ax = plt.axes([0.72, y_pos, 0.05, 0.03])
+            x_input = TextBox(x_input_ax, '', initial=str(point[0]))
 
-            self.modifiable_fields.append((x_input, y_input, z_input))
+            y_input_ax = plt.axes([0.79, y_pos, 0.05, 0.03])
+            y_input = TextBox(y_input_ax, '', initial=str(point[1]))
 
-        plt.draw()  # Redraw the canvas
+            z_input_ax = plt.axes([0.85, y_pos, 0.05, 0.03])
+            z_input = TextBox(z_input_ax, '', initial=str(point[2]))
+
+            weight_input_ax = plt.axes([0.91, y_pos, 0.05, 0.03])
+            weight_input = TextBox(weight_input_ax, '', initial=str(weight))
+
+            self.modifiable_fields.append((x_input, y_input, z_input, weight_input))
+
+        plt.draw()
 
     def clear_modifiable_fields(self):
-        """ Clear the existing modifiable fields """
-        for x_input, y_input, z_input in self.modifiable_fields:
-            x_input_ax = x_input.ax
-            y_input_ax = y_input.ax
-            z_input_ax = z_input.ax
-            x_input_ax.remove()  # Remove the X input field
-            y_input_ax.remove()  # Remove the Y input field
-            z_input_ax.remove()  # Remove the Z input field
+        """ Clear the existing modifiable fields and headers """
+        for inputs in self.modifiable_fields:
+            for input_field in inputs:
+                input_field.ax.remove()
+
+        # Remove headers
+        for header in self.headers:
+            header.remove()
 
         self.modifiable_fields = []
+        self.headers = []
         plt.draw()  # Redraw the canvas to reflect the removal of fields
 
-    def save_modified_points(self, event):
+    def save_modified_points(self):
         """ Save the modified points and update the plot """
-        for i, (x_input, y_input, z_input) in enumerate(self.modifiable_fields):
+        new_points = []
+        new_weights = []
+
+        for inputs in self.modifiable_fields:
             try:
-                x = float(x_input.text)
-                y = float(y_input.text)
-                z = float(z_input.text)
-                self.control_points[i] = [x, y, z]
+                x = float(inputs[0].text)
+                y = float(inputs[1].text)
+                z = float(inputs[2].text)
+                weight = float(inputs[3].text)
+                new_points.append([x, y, z])
+                new_weights.append(weight)
             except ValueError:
-                print(f"Invalid input for point {i+1}.")
+                print("Invalid input for a control point or weight.")
+
+        self.control_points = new_points
+        self.weights = new_weights
 
         self.clear_modifiable_fields()  # Hide the input fields after saving
         self.update_plot()
@@ -222,9 +243,9 @@ class CurveEditor3D:
 
 
     def update_plot(self):
-        """ Update the plot with new control points and Bézier surface if there are enough points """
+        """ Update the plot with new control points """
         self.ax.cla()  # Clear the previous plot
-        self.set_axis_limits()  # Reset axis limits
+        self.set_axis_limits()
 
         if len(self.control_points) < 1:
             return
@@ -239,9 +260,9 @@ class CurveEditor3D:
                         z_vals = [point1[2], point2[2]]
                         self.ax.plot(x_vals, y_vals, z_vals, color='yellow', linewidth=1)
 
-        # If there are at least 4 points
+        # Plot the selected surface type if enough points are available
         if len(self.control_points) >= 4:
-            grid_size = int(np.ceil(np.sqrt(len(self.control_points))))  # Determine grid size (rounded up)
+            grid_size = int(np.ceil(np.sqrt(len(self.control_points))))
             control_grid = self.form_control_grid(self.control_points, grid_size)
 
             if self.selected_surface_type == 'bezier':
