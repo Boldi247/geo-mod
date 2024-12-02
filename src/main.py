@@ -1,7 +1,3 @@
-# TODO: Investigate why the B Spline surface is displaying with a (0,0,0) controlpoint added every single time
-# TODO: Fix the matplotlib grid. It should be strictly in between a set of values. E.g: -10, 10, -10, 10, 0, 10  ---- Done: Adam Szucs :D
-# TODO: control points should be consecutively connected - Done: Boldizsar Kovacs
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
@@ -13,10 +9,10 @@ class CurveEditor3D:
     def __init__(self):
         self.control_points = []
         self.weights = []
-        self.modifiable_fields = []  # Initialize modifiable_fields
-        self.headers = []  # Initialize headers to store table headers
-        self.fig = plt.figure(figsize=(16, 8))  # Larger figure size
-        gs = gridspec.GridSpec(1, 2, width_ratios=[1, 2])  # Layout for left and right sections
+        self.modifiable_fields = []
+        self.headers = []
+        self.fig = plt.figure(figsize=(16, 8))
+        gs = gridspec.GridSpec(1, 2, width_ratios=[1, 2])
 
         # Left section for adding points, initial points, and display
         self.ax = self.fig.add_subplot(gs[1], projection='3d', position=[0.2, 0.1, 0.65, 0.8])
@@ -37,7 +33,7 @@ class CurveEditor3D:
         # Weight input for NURBS
         weight_input_ax = plt.axes([0.05, 0.45, 0.2, 0.05])
         self.weight_input = TextBox(weight_input_ax, 'Weight', initial='1.0')
-        self.weight_input.set_active(False)  # Initially hidden
+        self.weight_input.set_active(False) 
 
         # Add Point button
         add_ax = plt.axes([0.05, 0.85, 0.2, 0.075])
@@ -79,7 +75,7 @@ class CurveEditor3D:
         modify_ax = plt.axes([0.85, 0.85, 0.1, 0.075])
         self.modify_button = Button(modify_ax, 'Modify Points')
         self.modify_button.on_clicked(self.modify_or_save_points)
-        self.is_modify_mode = True  # Track if we're in modify mode
+        self.is_modify_mode = True
 
         # Buttons to switch between surface types
         self.selected_surface_type = 'bezier'
@@ -130,16 +126,16 @@ class CurveEditor3D:
             weight = float(self.weight_input.text) if self.selected_surface_type == 'nurbs' else 1.0
 
             new_point = [x, y, z]
-            self.control_points.append(new_point)  # Add the new point
-            self.weights.append(weight)  # Add the weight
-            self.update_plot()  # Update the plot with the new point
-            self.update_points_display()  # Update the list of points
+            self.control_points.append(new_point) 
+            self.weights.append(weight)
+            self.update_plot()
+            self.update_points_display()
 
             # Clear the input boxes after the point is added
             self.x_input.set_val('')
             self.y_input.set_val('')
             self.z_input.set_val('')
-            self.weight_input.set_val('1.0')  # Reset weight to default
+            self.weight_input.set_val('1.0')
         except ValueError:
             print("Please enter valid numerical values for the coordinates.")
 
@@ -148,7 +144,7 @@ class CurveEditor3D:
         if self.is_modify_mode:
             # Switch to save mode
             self.modify_button.label.set_text("Save Points")
-            self.show_modifiable_points()  # Show input fields for modifying points
+            self.show_modifiable_points() 
             self.is_modify_mode = False
         else:
             # Save the modified points
@@ -161,20 +157,20 @@ class CurveEditor3D:
         """ Show modifiable input fields for existing points in table format """
         self.clear_modifiable_fields()
         self.modifiable_fields = []
-        self.headers = []  # Store headers for later removal
+        self.headers = []
 
         # Add headers for the table
-        header_ax = plt.axes([0.72, 0.5, 0.25, 0.03])  # Adjusted header position
+        header_ax = plt.axes([0.72, 0.5, 0.25, 0.03])
         header_ax.axis("off")
         header_ax.text(0.1, 0.5, "X", fontsize=10, ha='center', transform=header_ax.transAxes)
         header_ax.text(0.35, 0.5, "Y", fontsize=10, ha='center', transform=header_ax.transAxes)
         header_ax.text(0.6, 0.5, "Z", fontsize=10, ha='center', transform=header_ax.transAxes)
         header_ax.text(0.85, 0.5, "W", fontsize=10, ha='center', transform=header_ax.transAxes)
-        self.headers.append(header_ax)  # Save the header for later removal
+        self.headers.append(header_ax)
 
         # Create input fields for each control point and weight
         for i, (point, weight) in enumerate(zip(self.control_points, self.weights)):
-            y_pos = 0.45 - i * 0.07  # Increased spacing between rows
+            y_pos = 0.45 - i * 0.07
 
             x_input_ax = plt.axes([0.72, y_pos, 0.05, 0.03])
             x_input = TextBox(x_input_ax, '', initial=str(point[0]))
@@ -225,26 +221,26 @@ class CurveEditor3D:
         self.control_points = new_points
         self.weights = new_weights
 
-        self.clear_modifiable_fields()  # Hide the input fields after saving
+        self.clear_modifiable_fields()
         self.update_plot()
         self.update_points_display()
 
     def clear_points(self, event):
         """ Clear all points from the control points list and update the plot """
-        self.control_points = []  # Reset control points to an empty list
-        self.update_plot()  # Clear the plot
-        self.update_points_display()  # Update the display to reflect cleared points
+        self.control_points = []
+        self.update_plot() 
+        self.update_points_display() 
 
     def set_axis_limits(self):
         """ Set constant axis limits from -10 to 10 in all directions """
         self.ax.set_xlim([-10, 10])
         self.ax.set_ylim([-10, 10])
-        self.ax.set_zlim([-10, 10])  # Z-axis limits from 0 to 10 to avoid negative Z values
+        self.ax.set_zlim([-10, 10])
 
 
     def update_plot(self):
         """ Update the plot with new control points """
-        self.ax.cla()  # Clear the previous plot
+        self.ax.cla() 
         self.set_axis_limits()
 
         if len(self.control_points) < 1:
@@ -283,7 +279,8 @@ class CurveEditor3D:
 
     def on_scroll(self, event):
         """ Handle the mouse scroll event for zooming """
-        scale_factor = 0.9 if event.button == 'up' else 1.1  # Zoom in for scroll up, out for scroll down
+        # Zoom in for scroll up, out for scroll down
+        scale_factor = 0.9 if event.button == 'up' else 1.1 
 
         # Get current axis limits
         xlim = self.ax.get_xlim()
@@ -300,7 +297,7 @@ class CurveEditor3D:
         self.ax.set_ylim(new_ylim)
         self.ax.set_zlim(new_zlim)
 
-        plt.draw()  # Redraw the plot with new scaling
+        plt.draw()
 
     def scale_axis(self, axis_limits, scale_factor):
         """ Scale axis limits by a scale factor """
@@ -335,7 +332,7 @@ class CurveEditor3D:
                 if point is not None:
                     row.append(point)
                 else:
-                    row.append([np.nan, np.nan, np.nan])  # Use NaN for invalid points
+                    row.append([np.nan, np.nan, np.nan]) 
             surface_points.append(row)
 
         surface_points = np.array(surface_points)
@@ -370,14 +367,13 @@ class CurveEditor3D:
         """Calculate a point on a B-Spline surface."""
         n, m = control_points.shape[:2]
 
-        # Create knot vectors (uniform knot vector for simplicity)
         knot_vector_u = np.linspace(0, 1, n + degree + 1)
         knot_vector_v = np.linspace(0, 1, m + degree + 1)
 
         point = np.zeros(3)
 
         # Calculate the surface point using the B-spline basis functions (no weights)
-        weight_sum = 0.0  # Track total weight for validation
+        weight_sum = 0.0 
 
         for i in range(n):
             for j in range(m):
@@ -388,7 +384,7 @@ class CurveEditor3D:
                 weight_sum += weight
 
         # If the weight sum is too small, return None (to avoid zero points)
-        if weight_sum < 1e-6:  # You can adjust this threshold
+        if weight_sum < 1e-6:
             print(f"Invalid surface point at (u, v) = ({u}, {v}), weight sum = {weight_sum}")
             return None
 
@@ -474,7 +470,7 @@ class CurveEditor3D:
         u_vals = np.linspace(0, 1, steps)
         v_vals = np.linspace(0, 1, steps)
 
-        surface_points = np.full((steps, steps, 3), np.nan)  # Use NaN to skip invalid points
+        surface_points = np.full((steps, steps, 3), np.nan)
 
         # Compute NURBS surface points
         for i, u in enumerate(u_vals):
@@ -513,7 +509,6 @@ class CurveEditor3D:
         """Calculate a point on a NURBS surface."""
         n, m = control_points.shape[:2]
 
-        # Create knot vectors (uniform knot vector for simplicity)
         knot_vector_u = np.linspace(0, 1, n + degree + 1)
         knot_vector_v = np.linspace(0, 1, m + degree + 1)
 
